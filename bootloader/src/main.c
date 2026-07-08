@@ -7,7 +7,6 @@
 #include <soc/gpio_reg.h> // - макросы
 #include <driver/gpio.h>
 #include <soc/uart_reg.h>
-//#include <string.h>
 
 #define QUEUE_SIZE 10
 #define BAUD 115200
@@ -27,7 +26,7 @@ void unit_uart()
     ESP_ERROR_CHECK( uart_driver_install(UART_NUM_1, uart_buffer_size, uart_buffer_size, QUEUE_SIZE, &uart_queue, 0) ); 
 
     // инициализация структуры конфигурации UART и установка параметров UART
-    uart_config_t uart_conf = {0}; 
+    uart_config_t uart_conf = {}; 
     uart_conf.baud_rate = BAUD;
     uart_conf.data_bits = UART_DATA_8_BITS;
     uart_conf.parity = UART_PARITY_DISABLE;
@@ -45,7 +44,7 @@ void unit_uart()
 void unit_gpio()
 {
 
-    gpio_config_t gpio_conf = {0}; // инициализация структуры конфигурации GPIO 
+    gpio_config_t gpio_conf = {}; // инициализация структуры конфигурации GPIO 
     gpio_conf.pin_bit_mask = (1ULL << GPIO_NUM_8);
     gpio_conf.mode = GPIO_MODE_OUTPUT;
     gpio_conf.pull_up_en = GPIO_PULLUP_DISABLE;
@@ -61,5 +60,5 @@ void app_main()
     unit_uart(); // инициализация UART
     unit_gpio(); // инициализация GPIO
     uart_write_bytes(UART_NUM_1, message, strlen(message)); // запись сообщения через UART
-    delay(1000);
+    delay(500);
 }
