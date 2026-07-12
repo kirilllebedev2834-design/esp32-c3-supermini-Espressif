@@ -21,13 +21,13 @@ blink_loop:
     li      t1, LED_GPIO_BIT
     sw      t1, 0(t0)   # устанавливаем GPIO8 в LOW "инвертированное состояние"
     mv      a0, s1
-    call    delay
+    call    delay_for_blink
 
     li      t0, GPIO_OUT_W1TS_REG
     li      t1, LED_GPIO_BIT
     sw      t1, 0(t0)   # устанавливаем GPIO8 в HIGH
     mv      a0, s1
-    call    delay
+    call    delay_for_blink
 
     addi    s0, s0, -1
     j       blink_loop
@@ -39,9 +39,9 @@ blink_done:
     addi    sp, sp, 16
     ret
 
-    .global delay
-    .type delay,@function
-delay:
+    .global delay_for_blink
+    .type delay_for_blink,@function
+delay_for_blink:
     li      t2, 80000   # ну это примерно 1 миллисекунда так как при 160 МГц, 2 такта итерация
     mul     t2, t2, a0  # время задержки
 delay_loop:

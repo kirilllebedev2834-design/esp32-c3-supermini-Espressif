@@ -7,16 +7,17 @@
 #include <soc/gpio_reg.h> 
 #include <driver/gpio.h>
 #include <soc/uart_reg.h>
-//#include <esp_intr_alloc.h>
+#include "esp_partition.h"
+#include "esp_ota_ops.h"
 
-#define QUEUE_SIZE 10
+#define QUEUE_SIZE 20
 #define BAUD 115200
 #define RX_FLOW_CTRL_THRESH 120
 
 extern void delay(uint16_t count);
-void init_uart();
-void init_gpio();
-void jump_to_program();
+void init_uart(void);
+void init_gpio(void);
+void jump_to_program(void);
 
 // gpio_hold_en(GPIO_NUM_8);
 // gpio_hold_dis(GPIO_NUM_8);
@@ -31,7 +32,7 @@ void jump_to_program();
    устанавливает параметры UART через функцию uart_param_config().
    Сама функция ничего не возвращает, но ESP_ERROR_CHECK будет возвращать состояния.
 */ 
-void init_uart()
+void init_uart(void)
 {
     const int uart_buffer_size = (1024 * 2);
     QueueHandle_t uart_queue;
@@ -56,6 +57,7 @@ void init_uart()
     uart_intr_conf.txfifo_empty_intr_thresh = 10;
     uart_intr_conf.rxfifo_full_thresh = 120;
 
+    
     // установка пинов UART через функцию проверки ошибки
     ESP_ERROR_CHECK( uart_set_pin(UART_NUM_1, 2, 8, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE) ); 
     ESP_ERROR_CHECK( uart_param_config(UART_NUM_1, &uart_conf) );     // установка параметров UART
@@ -70,7 +72,7 @@ void init_uart()
    Настраиваем общую конфигурацию через gpio_config() и устанавливаем службу обработчика прерываний через gpio_install_isr_service().
    Сама функция ничего не возвращает, но ESP_ERROR_CHECK будет возвращать состояния.
 */ 
-void init_gpio()
+void init_gpio(void)
 {
     gpio_config_t gpio_8_conf = {0}; // инициализация структуры конфигурации GPIO 8 - светодиод 
     gpio_8_conf.pin_bit_mask = (1ULL << GPIO_NUM_8);
@@ -97,21 +99,49 @@ void init_gpio()
 }
 
 /*
-    Функция прыжка в другую программу
-*/
-void jump_to_program()
-{
+    Функция прыжка в другую программу. 
+    Используется ОТА - механизм для прыжка в независимую программу.
 
+
+*/
+void jump_to_program(void)
+{
+    const esp_partition_t* program2_partition = NULL;
+    esp_err_t find_partition_error = esp_partition_find_first_err
+    (
+        ESP_PARTITION_TYPE_ANY,
+        ESP_PARTITION_SUBTYPE_ANY,
+        "program2",
+        &program2_partition
+    );
+
+    if(find_partition_error != ESP_OK)
+    {
+        const char error_message[] = "Ошибка поиска раздела program2: ";
+        uart_write_bytes(UART_NUM_1, error_message, strlen(error_message));
+        uart_write_bytes(UART_NUM_1, esp_err_to_name(find_partition_error), strlen(esp_err_to_name(find_partition_error)));
+        uart_flush(UART_NUM_1); // очищаем буфер
+        return;
+    }
+
+    ESP_ERROR_CHECK( esp_ota_set_boot_partition(program2_partition) ); // установка раздела program2 как загрузочного раздела для следующей перезагрузки
+    const char message[] = "Переход к Program2...\n";
+    uart_write_bytes(UART_NUM_1, message, strlen(message));
+    uart_flush(UART_NUM_1); // очищаем буфер
+    esp_restart(); // перезагрузка микроконтроллера для перехода в другую программу
 }
+/* ^^^^^^^
+    прыжки между программными модулями bootloader, program2, program3 работают по принципу обновление прошивки через wifi,
+    но "обновление" мы делаем вручную то есть также через OTA механизм.
+*/  
 
 void app_main() 
 {
     const char message[] = "Инициализация завершена. Переход к Program2.\n";
-    //gpio_dump_io_configuration(stdout, SOC_GPIO_VALID_GPIO_MASK);
     init_uart(); 
     init_gpio(); 
     uart_write_bytes(UART_NUM_1, message, strlen(message)); // запись сообщения через UART
     delay(1000);
     uart_flush(UART_NUM_1); // очищаем буфер 
-    //jump_to_program();
+    jump_to_program();
 }
