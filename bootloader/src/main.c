@@ -19,9 +19,6 @@ void init_uart(void);
 void init_gpio(void);
 void jump_to_program(void);
 
-// gpio_hold_en(GPIO_NUM_8);
-// gpio_hold_dis(GPIO_NUM_8);
-
 /* 
    Функция инициализации UART
    const int uart_buffer_size - размер буфера RX и TX UART, который будет использоваться для приема и передачи данных.
@@ -59,7 +56,7 @@ void init_uart(void)
 
     
     // установка пинов UART через функцию проверки ошибки
-    ESP_ERROR_CHECK( uart_set_pin(UART_NUM_1, 2, 8, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE) ); 
+    ESP_ERROR_CHECK( uart_set_pin(UART_NUM_1, GPIO_NUM_2, GPIO_NUM_8, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE) ); 
     ESP_ERROR_CHECK( uart_param_config(UART_NUM_1, &uart_conf) );     // установка параметров UART
     ESP_ERROR_CHECK( uart_intr_config(UART_NUM_1, &uart_intr_conf) ); // установка прерывания UART
 }
@@ -69,7 +66,7 @@ void init_uart(void)
    Иниицализация двух структур конфигурации GPIO: GPIO 8 - синий светодиод на микроконтроллере ESP32-C3
    и GPIO 2 - пин на плате ESP32-C3.
    GPIO 8 настраивается как выходной пин, а GPIO 2 - как входной пин с подтяжкой к питанию и прерыванием по любому фронту.
-   Настраиваем общую конфигурацию через gpio_config() и устанавливаем службу обработчика прерываний через gpio_install_isr_service().
+   Настраиваем общую конфигурацию через gpio_config().
    Сама функция ничего не возвращает, но ESP_ERROR_CHECK будет возвращать состояния.
 */ 
 void init_gpio(void)
@@ -86,16 +83,10 @@ void init_gpio(void)
     gpio_2_conf.mode = GPIO_MODE_INPUT;
     gpio_2_conf.pull_up_en = GPIO_PULLUP_ENABLE;
     gpio_2_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    gpio_2_conf.intr_type = GPIO_INTR_ANYEDGE;
+    gpio_2_conf.intr_type = GPIO_INTR_DISABLE;
 
     ESP_ERROR_CHECK( gpio_config(&gpio_8_conf) );
     ESP_ERROR_CHECK( gpio_config(&gpio_2_conf) );
-    
-    /*
-    функция службы обработчика прерываний драйвера GPIO для 
-    создания обработчиков прерываний каждого контакта GPIO
-    */ 
-    ESP_ERROR_CHECK( gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1) );
 }
 
 /*
@@ -128,11 +119,13 @@ void jump_to_program(void)
     const char message[] = "Переход к Program2...\n";
     uart_write_bytes(UART_NUM_1, message, strlen(message));
     uart_flush(UART_NUM_1); // очищаем буфер
-    esp_restart(); // перезагрузка микроконтроллера для перехода в другую программу
+    //esp_restart(); // перезагрузка микроконтроллера для перехода в другую программу
 }
 /* ^^^^^^^
     прыжки между программными модулями bootloader, program2, program3 работают по принципу обновление прошивки через wifi,
     но "обновление" мы делаем вручную то есть также через OTA механизм.
+
+    esp_restart() - используется для того чтобы запустить перезапуск чипа это нужно для того чтобы 
 */  
 
 void app_main() 

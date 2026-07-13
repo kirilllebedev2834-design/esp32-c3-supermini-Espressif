@@ -14,13 +14,11 @@
 #define BAUD 115200
 #define QUEUE_SIZE 20
 #define RX_FLOW_CTRL_THRESH 120
-// #define BUTTON_IS_NOT_PRESSED 0
-// #define SHORT_BUTTON_PRESS 1
-// #define LONG_BUTTON_PRESS 2
 
 extern void blink_function(uint16_t count, uint16_t delay);
 extern void delay(uint16_t count);
-//extern uint16_t button_function(void);
+extern uint8_t button_function(void);
+
 void init_uart(void);
 void init_gpio(void);
 void message_about_current_work_once_per_second_uart(const char* message, uint16_t uart);
@@ -71,16 +69,10 @@ void init_gpio(void)
     gpio_2_conf.mode = GPIO_MODE_INPUT;
     gpio_2_conf.pull_up_en = GPIO_PULLUP_ENABLE;
     gpio_2_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    gpio_2_conf.intr_type = GPIO_INTR_ANYEDGE;
+    gpio_2_conf.intr_type = GPIO_INTR_DISABLE;
 
     ESP_ERROR_CHECK( gpio_config(&gpio_8_conf) );
     ESP_ERROR_CHECK( gpio_config(&gpio_2_conf) );
-
-    /*
-    функция службы обработчика прерываний драйвера GPIO для 
-    создания обработчиков прерываний каждого контакта GPIO
-    */ 
-    ESP_ERROR_CHECK( gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1) );
 }
 
 void message_about_current_work_once_per_second_uart(const char* message, uint16_t uart)
@@ -92,17 +84,47 @@ void message_about_current_work_once_per_second_uart(const char* message, uint16
 
 void jump_to_program(const char* name_program)
 {
+    const esp_partition_t* program_partition = NULL;
+    esp_err_t find_partition_error = esp_partition_find_first_err
+    (
+        ESP_PARTITION_TYPE_ANY,
+        ESP_PARTITION_SUBTYPE_ANY,
+        name_program,
+        &program_partition
+    );
 
+    if(find_partition_error != ESP_OK)
+    {
+        const char error_message[] = "Ошибка поиска раздела program2: ";
+        uart_write_bytes(UART_NUM_1, error_message, strlen(error_message));
+        uart_write_bytes(UART_NUM_1, esp_err_to_name(find_partition_error), strlen(esp_err_to_name(find_partition_error)));
+        uart_flush(UART_NUM_1); // очищаем буфер
+        delay(200);
+        return;
+    }
+
+    ESP_ERROR_CHECK( esp_ota_set_boot_partition(program_partition) ); 
+    const char msg[] = "Переход к Program3...\n";
+    uart_write_bytes(UART_NUM_1, msg, strlen(msg));
+    uart_flush(UART_NUM_1); // очищаем буфер
+    delay(200);
+    esp_restart(); // перезагрузка микроконтроллера для перехода в другую программу
 }
-
 
 void app_main() 
 {
     blink_function(3, 500);
     //uint16_t state_of_press_button = button_function();
     const char str[] = "Program3: Работаю...";
+    const uint64_t time = 0;
     while(1)
     {
         message_about_current_work_once_per_second_uart(str, UART_NUM_1);
+        if(button_function())
+        {
+            
+        }
+
+
     }
 }
