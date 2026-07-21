@@ -24,24 +24,36 @@
     д) Обработка ошибок: надёжная обработка возможных ошибок (например, неудачная инициализация периферии).  
     
 */
+#include "macrosandother.h"
 
-/*
-   GPIO     - 0x6000_4000 - 0x6000_4FFF 176 страница
-   IO_MUX   - 0x6000_9000 - 0x6000_9FFF после GPIO
-   UART     - 0x6000_0000 - 0x6000_0FFF 561 и 568 страницы 
-   203 211 276 294 432
-*/
+void init_uart1()
+{
+    /*
+        To initialize UARTn:
+        • enable the clock for UART RAM by setting SYSTEM_UART_MEM_CLK_EN to 1;
+        • enable APB_CLK for UARTn by setting SYSTEM_UARTn_CLK_EN to 1;
+        • clear SYSTEM_UARTn_RST;
+        • write 1 to UART_RST_CORE;
+        • write 1 to SYSTEM_UARTn_RST;
+        • clear SYSTEM_UARTn_RST;
+        • clear UART_RST_CORE;
+        • enable register synchronization by clearing UART_UPDATE_CTRL
+    */
+    
+}
 
-#include <stdint.h>
-
-//#define
-
-extern void delay(uint16_t milliseconds); 
-extern void blink_function(uint16_t count, uint32_t delay_milliseconds);
+void init_gpio()
+{
+    // GPIO8 - светодиод
+    *(volatile uint32_t*)(IO_MUX_CONF_REG_FOR_PIN_GPIO8) = (1 << 12);
+    *(volatile uint32_t*)(GPIO_OUTPUT_ENABLE_REGISTER) |= (1 << 8);
+    // GPIO9 - кнопка boot 
+    *(volatile uint32_t*)(IO_MUX_CONF_REG_FOR_PIN_GPIO9) = (1 << 12);
+    *(volatile uint32_t*)(IO_MUX_CONF_REG_FOR_PIN_GPIO9) |= (1 << 9);
+}
 
 void app_main() 
 {
-    *(volatile uint32_t*)(0x60009024) |= (1 << 12);
-    *(volatile uint32_t*)(0x60004020) |= (1 << 8);
-    while(1){blink_function(5, 1000);}
+    
+    //while(1){blink_function(5, 1000);}
 }
