@@ -1,0 +1,8 @@
+#ifndef MACROSES_AND_OTHERS_FOR_ESP32
+#define MACROSES_AND_OTHERS_FOR_ESP32
+
+
+
+
+
+#endif
