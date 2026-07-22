@@ -26,7 +26,7 @@
 */
 #include "macrosandother.h"
 
-void init_uart1()
+void init_uart1(void)
 {
     /*
         To initialize UARTn:
@@ -42,7 +42,7 @@ void init_uart1()
     
 }
 
-void init_gpio()
+void init_gpio(void)
 {
     // GPIO8 - светодиод
     *(volatile uint32_t*)(IO_MUX_CONF_REG_FOR_PIN_GPIO8) = (1 << 12);
@@ -52,8 +52,7 @@ void init_gpio()
     *(volatile uint32_t*)(IO_MUX_CONF_REG_FOR_PIN_GPIO9) |= (1 << 9);
 }
 
-void app_main() 
+void app_main(void) 
 {
     
-    //while(1){blink_function(5, 1000);}
 }

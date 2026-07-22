@@ -9,6 +9,7 @@
 */
 
 #include <stdint.h>
+#include <stdio.h>
 
 #define true ((_Bool)1)
 #define false ((_Bool)0)
@@ -16,6 +17,7 @@
 // UART macroses for work from documentation:
 #define UART1_BASE_ADRESS 0x60010000
 #define UART1_CLK_DEV_REG 0x60010014
+//#define SYSTEM_UART_MEMORY_CLK_ENABLE 
 
 //GPIO and IO_MUX macroses for work from documentation: 
 #define GPIO_OUTPUT_ENABLE_REGISTER 0x60004020
@@ -31,6 +33,7 @@ typedef uint8_t byte;
 
 extern void delay(uint16_t milliseconds); 
 extern void blink_function(uint16_t count, uint32_t delay_milliseconds);
+//extern void 
 void init_uart1(void);
 void init_gpio(void);
 
