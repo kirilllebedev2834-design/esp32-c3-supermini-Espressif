@@ -14,10 +14,17 @@
 #define true ((_Bool)1)
 #define false ((_Bool)0)
 #define bool _Bool
+
 // UART macroses for work from documentation:
 #define UART1_BASE_ADRESS 0x60010000
 #define UART1_CLK_DEV_REG 0x60010014
-//#define SYSTEM_UART_MEMORY_CLK_ENABLE 
+#define SYS_CLK_EN0_REG 0x600C0010  // Включение тактирования периферии
+#define SYS_RST_EN0_REG 0x600C0018  // Сброс периферии
+#define UART1_CLKDIV_REG 0x60010014  // Делитель частоты (скорость)
+#define UART1_CONF0_REG  0x60010020  // Конфигурация кадра
+#define UART1_CLK_CONF_REG 0x60010078  // Настройка частоты ядра
+#define UART1_UPDATE_REG 0x600100A4  // Синхронизация регистров
+#define UART1_FIFO_REG 0x60010000  // Буфер приема/передачи (FIFO)
 
 //GPIO and IO_MUX macroses for work from documentation: 
 #define GPIO_OUTPUT_ENABLE_REGISTER 0x60004020
