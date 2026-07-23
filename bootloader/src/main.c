@@ -25,7 +25,6 @@
     
 */
 #include "macrosandother.h"
-
 #define REGISTER_POINTER(adress) (*(volatile uint32_t*)(adress))
 
 /*
@@ -57,41 +56,43 @@
 */
 void init_uart1(void)
 {
-    REGISTER_POINTER(SYS_CLK_EN0_REG) |= (1 << 24) | (1 << 5);
+    REGISTER_POINTER(SYS_CLK_EN_REG) |= (1 << 24) | (1 << 2);
 
-    REGISTER_POINTER(SYS_RST_EN0_REG) &= ~(1 << 5);
+    REGISTER_POINTER(SYS_RST_EN_REG) &= ~(1 << 2);
 
-    REGISTER_POINTER(UART1_CLK_CONF_REG) |= (1 << 23);
+    REGISTER_POINTER(UART_CLK_CONF_REG) |= (1 << 23);
 
-    REGISTER_POINTER(SYS_RST_EN0_REG) |= (1 << 5);
+    REGISTER_POINTER(SYS_RST_EN_REG) |= (1 << 2);
 
-    REGISTER_POINTER(SYS_RST_EN0_REG) &= ~(1 << 5);
+    REGISTER_POINTER(SYS_RST_EN_REG) &= ~(1 << 2);
 
-    REGISTER_POINTER(UART1_CLK_CONF_REG) &= ~(1 << 23);
+    REGISTER_POINTER(UART_CLK_CONF_REG) &= ~(1 << 23);
 
-    REGISTER_POINTER(UART1_UPDATE_REG) &= ~(1 << 0);
+    REGISTER_POINTER(UART_UPDATE_REG) &= ~(1 << 0);
 
 
     // • дождитесь, пока UART_REG_UPDATE станет равным 0 (завершение синхронизации)
-    while ((REGISTER_POINTER(UART1_UPDATE_REG) & (1 << 0)) != 0) {}
+    while ((REGISTER_POINTER(UART_UPDATE_REG) & (1 << 0)) != 0) {}
 
     // • выберите источник тактового сигнала APB_CLK 80 МГц (биты 21:20 = 01),
     //   а также включите тактирование TX/RX (биты 25, 24, 22) и базовый делитель (биты 19:12 = 1)
-    REGISTER_POINTER(UART1_CLK_CONF_REG) = (1 << 25) | (1 << 24) | (1 << 22) | (1 << 20) | (1 << 12);
+    REGISTER_POINTER(UART_CLK_CONF_REG) = (1 << 25) | (1 << 24) | (1 << 22) | (1 << 20) | (1 << 12);
 
     // • настройте скорость передачи (115200 бод при частоте APB 80 МГц ( 80млн/115200 ~~ 694,(4) ): по формуле:
     //итоговая скорость передачи равна
     //INPUT_FREQ / (UART_CLKDIV + UART_CLKDIV_FRAG / 16)
     //где INPUT_FREQ — частота источника тактового сигнала ядра UART. целая часть 694, дробная 7)
     //   записываем в UART_CLKDIV (биты [23:4]) и UART_CLKDIV_FRAG (биты [3:0])
-    REGISTER_POINTER(UART1_CLKDIV_REG) = (694 << 4) | 7;
+    REGISTER_POINTER(UART_CLKDIV_REG) = (694 << 4) | 7;
 
     // • настройте длину данных 8 бит (значение 11b в битах [3:2]) и отключите четность
-    REGISTER_POINTER(UART1_CONF0_REG) = (3 << 2);
+    REGISTER_POINTER(UART_CONF_REG) = (3 << 2);
 
     // • синхронизируйте настроенные значения с доменом Core Clock, записав 1 в UART_REG_UPDATE (бит 0)
-    REGISTER_POINTER(UART1_UPDATE_REG) |= (1 << 0);
+    REGISTER_POINTER(UART_UPDATE_REG) |= (1 << 0);
 }
+/* переписал с UART1 на UART0 потому что UART0 тесносвязан с USB-JTAG из-за чего только с UART0 можно работать с терминалом*/
+
 
 void init_gpio(void)
 {
@@ -99,8 +100,7 @@ void init_gpio(void)
     REGISTER_POINTER(IO_MUX_CONF_REG_FOR_PIN_GPIO8) = (1 << 12);
     REGISTER_POINTER(GPIO_OUTPUT_ENABLE_REGISTER) |= (1 << 8);
     // GPIO9 - кнопка boot 
-    REGISTER_POINTER(IO_MUX_CONF_REG_FOR_PIN_GPIO9) = (1 << 12);
-    REGISTER_POINTER(IO_MUX_CONF_REG_FOR_PIN_GPIO9) |= (1 << 9);
+    REGISTER_POINTER(IO_MUX_CONF_REG_FOR_PIN_GPIO9) = (1 << 12) | (1 << 9) | (1 << 8);
 }
 
 void app_main(void) 
