@@ -25,7 +25,37 @@
     
 */
 #include "macrosandother.h"
-#define REGISTER_POINTER(adress) (*(volatile uint32_t*)(adress))
+
+
+/*
+   warning_led - функция которая будет использоваться для мигания в ситуациях когда у нас возникают ошибки 
+   включает светодиод на 3 секунды и потом выключает его предупреждая что случилась ошибка.
+*/
+void warning_led(void)
+{
+   REGISTER_POINTER(GPIO_OUTPUT_SET_REGISTER) = (1 << 8);
+   delay(3000);
+   REGISTER_POINTER(GPIO_OUTPUT_CLEAR_REGISTER) = (1 << 8);
+}
+
+/*uart_print - функция которая печатает символы через UART0 в терминал для вывода ошибок*/
+void uart_print(const char* string) 
+{
+    while (*string) 
+    {
+        // Ждем, если буфер почти полон
+        while (((REGISTER_POINTER(UART_STATUS_REGISTER) >> 16) & 0xFF) >= 120) {}
+        
+        // Отправляем символ
+        REGISTER_POINTER(UART_FIFO_REG) = *string++;
+    }
+}
+
+void error_print(const char* message)
+{
+    uart_print("Ошибка!\n");
+    uart_print(message);
+}
 
 /*
 Инициализация UARTn
@@ -52,9 +82,8 @@
 • настройте контроль чётности (нечётный или чётный) через UART_PARITY_EN и UART_PARITY;
 • дополнительные шаги в зависимости от приложения ...
 • синхронизируйте настроенные значения с доменом Core Clock, записав 1 в UART_REG_UPDATE.
-
 */
-void init_uart1(void)
+error_status_t init_uart(void)
 {
     REGISTER_POINTER(SYS_CLK_EN_REG) |= (1 << 24) | (1 << 2);
 
@@ -68,11 +97,18 @@ void init_uart1(void)
 
     REGISTER_POINTER(UART_CLK_CONF_REG) &= ~(1 << 23);
 
-    REGISTER_POINTER(UART_UPDATE_REG) &= ~(1 << 0);
+    REGISTER_POINTER(UART_UPDATE_REGISTER) &= ~(1 << 0);
 
-
+    uint32_t timeout = 10000000;
     // • дождитесь, пока UART_REG_UPDATE станет равным 0 (завершение синхронизации)
-    while ((REGISTER_POINTER(UART_UPDATE_REG) & (1 << 0)) != 0) {}
+    while ((REGISTER_POINTER(UART_UPDATE_REGISTER) & (1 << 0)) != 0) 
+    {
+        timeout--;
+        if(timeout==0)
+        {
+            return SYSTEM_TIMEOUT;
+        }
+    }
 
     // • выберите источник тактового сигнала APB_CLK 80 МГц (биты 21:20 = 01),
     //   а также включите тактирование TX/RX (биты 25, 24, 22) и базовый делитель (биты 19:12 = 1)
@@ -82,28 +118,49 @@ void init_uart1(void)
     //итоговая скорость передачи равна
     //INPUT_FREQ / (UART_CLKDIV + UART_CLKDIV_FRAG / 16)
     //где INPUT_FREQ — частота источника тактового сигнала ядра UART. целая часть 694, дробная 7)
-    //   записываем в UART_CLKDIV (биты [23:4]) и UART_CLKDIV_FRAG (биты [3:0])
+    // • записываем в UART_CLKDIV (биты [23:4]) и UART_CLKDIV_FRAG (биты [3:0])
     REGISTER_POINTER(UART_CLKDIV_REG) = (694 << 4) | 7;
 
     // • настройте длину данных 8 бит (значение 11b в битах [3:2]) и отключите четность
     REGISTER_POINTER(UART_CONF_REG) = (3 << 2);
 
     // • синхронизируйте настроенные значения с доменом Core Clock, записав 1 в UART_REG_UPDATE (бит 0)
-    REGISTER_POINTER(UART_UPDATE_REG) |= (1 << 0);
+    REGISTER_POINTER(UART_UPDATE_REGISTER) |= (1 << 0);
+    return SYSTEM_IS_OK;
 }
 /* переписал с UART1 на UART0 потому что UART0 тесносвязан с USB-JTAG из-за чего только с UART0 можно работать с терминалом*/
 
 
-void init_gpio(void)
+error_status_t init_gpio(void)
 {
     // GPIO8 - светодиод
     REGISTER_POINTER(IO_MUX_CONF_REG_FOR_PIN_GPIO8) = (1 << 12);
     REGISTER_POINTER(GPIO_OUTPUT_ENABLE_REGISTER) |= (1 << 8);
+    // проверка
+    if( (REGISTER_POINTER(IO_MUX_CONF_REG_FOR_PIN_GPIO8) & (1 << 12)) == 0){ return SYSTEM_ERROR_INIT_FAILED; }
+    if( (REGISTER_POINTER(GPIO_OUTPUT_ENABLE_REGISTER) & (1 << 8)) == 0){ return SYSTEM_ERROR_INIT_FAILED; }
+
     // GPIO9 - кнопка boot 
-    REGISTER_POINTER(IO_MUX_CONF_REG_FOR_PIN_GPIO9) = (1 << 12) | (1 << 9) | (1 << 8);
+    uint32_t gpio_9_mask = (1 << 12) | (1 << 9) | (1 << 8) ;
+    REGISTER_POINTER(IO_MUX_CONF_REG_FOR_PIN_GPIO9) = gpio_9_mask;
+    if( (REGISTER_POINTER(IO_MUX_CONF_REG_FOR_PIN_GPIO9) & gpio_9_mask) == gpio_9_mask){ return SYSTEM_ERROR_INIT_FAILED; }
+
+    return SYSTEM_IS_OK;
 }
 
 void app_main(void) 
 {
-    
+   error_status_t uart_conf = init_uart();
+   if(uart_conf != SYSTEM_IS_OK)
+   {
+        warning_led();
+        error_print("Ошибка инициализации UART");
+   }
+
+   error_status_t gpio_conf = init_gpio();
+   if(gpio_conf != SYSTEM_IS_OK)
+   {
+    warning_led();
+    error_print("Ошибка инициализации GPIO");
+   }
 }
