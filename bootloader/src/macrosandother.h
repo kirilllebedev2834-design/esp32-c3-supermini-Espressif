@@ -35,19 +35,22 @@ typedef enum
    SYSTEM_IS_OK = 0,
    SYSTEM_TIMEOUT = 1,
    SYSTEM_INVALID_ARG = 2,
+   SYSTEM_INVALID_ADRESS = 2,
    SYSTEM_ERROR_INIT_FAILED = 3,
+   SYSTEM_ERROR_MEMORY = 3,
+   SYSTEM_ERROR_MEMORY_OF_STACK = 3,
    SYSTEM_INVALID_JUMP_TO_PROGRAM = 4,
 } error_status_t; 
 
 
 extern void delay(uint16_t milliseconds); 
 extern void blink_function(uint16_t count, uint32_t delay_milliseconds);
-//extern void 
+extern void jump_to_program(uint32_t program_start_adress, uint32_t top_of_the_program_stack) __attribute__((noreturn));
 error_status_t init_uart(void);
 error_status_t init_gpio(void);
+error_status_t check_jump(uint32_t program_start_adress, uint32_t top_of_the_program_stack);
 void warning_led(void);
 void uart_print(const char* string);
 void sys_print_error(const char* message);
-void jump_to_program(void);
 
 #endif

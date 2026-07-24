@@ -50,8 +50,8 @@ void uart_print(const char* string)
         REGISTER_POINTER(UART_FIFO_REG) = *string++;
     }
 }
-
-void error_print(const char* message)
+/* sys_error_print - функция для сообщения об ошибке */
+void sys_error_print(const char* message)
 {
     uart_print("Ошибка!\n");
     uart_print(message);
@@ -136,6 +136,7 @@ error_status_t init_gpio(void)
     // GPIO8 - светодиод
     REGISTER_POINTER(IO_MUX_CONF_REG_FOR_PIN_GPIO8) = (1 << 12);
     REGISTER_POINTER(GPIO_OUTPUT_ENABLE_REGISTER) |= (1 << 8);
+
     // проверка
     if( (REGISTER_POINTER(IO_MUX_CONF_REG_FOR_PIN_GPIO8) & (1 << 12)) == 0){ return SYSTEM_ERROR_INIT_FAILED; }
     if( (REGISTER_POINTER(GPIO_OUTPUT_ENABLE_REGISTER) & (1 << 8)) == 0){ return SYSTEM_ERROR_INIT_FAILED; }
@@ -148,19 +149,41 @@ error_status_t init_gpio(void)
     return SYSTEM_IS_OK;
 }
 
+/* 
+    check_jump - функция для проверки прыжка и совершения его.
+    Проверяет, что адрес точки входа program_start_adress лежит в диапазоне IRAM SRAM (0x40380000 - 0x403DFFFF).
+    Проверяет, что стек top_of_the_program_stack выровнен по 16 байт и не ниже начала DRAM (0x3FC80000). 
+    Проверяет, что по адресу лежит рабочий код, а не стертая память (0xFFFFFFFF).
+    После всех проверок совершается прыжок в программу на указанный адрес.
+*/
+error_status_t check_jump(uint32_t program_start_adress, uint32_t top_of_the_program_stack)
+{
+    if (program_start_adress < 0x40380000 || program_start_adress > 0x403DFFFF) return SYSTEM_INVALID_ADRESS;
+        
+    if ((top_of_the_program_stack % 16 != 0) || top_of_the_program_stack < 0x3FC80000) return SYSTEM_ERROR_MEMORY;
+        
+    if (REGISTER_POINTER(program_start_adress) == 0xFFFFFFFF) return SYSTEM_ERROR_MEMORY_OF_STACK;
+        
+    
+    jump_to_program(program_start_adress, top_of_the_program_stack);
+}
+
 void app_main(void) 
 {
    error_status_t uart_conf = init_uart();
    if(uart_conf != SYSTEM_IS_OK)
    {
         warning_led();
-        error_print("Ошибка инициализации UART");
+        sys_error_print("Ошибка инициализации UART");
    }
 
    error_status_t gpio_conf = init_gpio();
    if(gpio_conf != SYSTEM_IS_OK)
    {
-    warning_led();
-    error_print("Ошибка инициализации GPIO");
+        warning_led();
+        sys_error_print("Ошибка инициализации GPIO");
    }
+
+   blink_function(1, 2000);
+   //error_status_t jump = check_jump();
 }
