@@ -43,6 +43,7 @@ void uart_print(const char* string)
 {
     while (*string) 
     {
+
         // Ждем, если буфер почти полон
         while (((REGISTER_POINTER(UART_STATUS_REGISTER) >> 16) & 0xFF) >= 120) {}
         
@@ -50,6 +51,7 @@ void uart_print(const char* string)
         REGISTER_POINTER(UART_FIFO_REG) = *string++;
     }
 }
+
 /* sys_error_print - функция для сообщения об ошибке */
 void sys_error_print(const char* message)
 {
@@ -150,22 +152,21 @@ error_status_t init_gpio(void)
 }
 
 /* 
-    check_jump - функция для проверки прыжка и совершения его.
-    Проверяет, что адрес точки входа program_start_adress лежит в диапазоне IRAM SRAM (0x40380000 - 0x403DFFFF).
-    Проверяет, что стек top_of_the_program_stack выровнен по 16 байт и не ниже начала DRAM (0x3FC80000). 
+    check_jump - функция для проверки прыжка. 
     Проверяет, что по адресу лежит рабочий код, а не стертая память (0xFFFFFFFF).
+    Проверяет, остановлен ли GDMA (чтобы он не писал в память во время прыжка)
     После всех проверок совершается прыжок в программу на указанный адрес.
 */
 error_status_t check_jump(uint32_t program_start_adress, uint32_t top_of_the_program_stack)
 {
-    if (program_start_adress < 0x40380000 || program_start_adress > 0x403DFFFF) return SYSTEM_INVALID_ADRESS;
+    uint32_t mstatus, bit_mask_for_gdma = 0x00FFFFFF ;
+    if (REGISTER_POINTER(program_start_adress) == 0xFFFFFFFF) return SYSTEM_ERROR_MEMORY_EMPTY_PROGRAM;
         
-    if ((top_of_the_program_stack % 16 != 0) || top_of_the_program_stack < 0x3FC80000) return SYSTEM_ERROR_MEMORY;
-        
-    if (REGISTER_POINTER(program_start_adress) == 0xFFFFFFFF) return SYSTEM_ERROR_MEMORY_OF_STACK;
-        
+    __asm__ volatile("csrr %0, mstatus" : "=r"(mstatus));
+    if (mstatus & 0x08) return SYSTEM_ERROR_INTERRUPTS_ACTIVE; // Бит MIE (Machine Interrupt Enable)
+    if (REGISTER_POINTER(GDMA_IN_STATE_CH0_REGISTER) & bit_mask_for_gdma) return SYSTEM_ERROR_DMA_STILL_RUNNING;
     
-    jump_to_program(program_start_adress, top_of_the_program_stack);
+    return SYSTEM_IS_OK;
 }
 
 void app_main(void) 
@@ -185,5 +186,15 @@ void app_main(void)
    }
 
    blink_function(1, 2000);
-   //error_status_t jump = check_jump();
+   error_status_t jump = check_jump(PROGRAM2_ADDRESS, PROGRAM2_STACK_TOP);
+   if(jump == SYSTEM_IS_OK)
+   {
+        jump_to_program(PROGRAM2_ADDRESS, PROGRAM2_STACK_TOP);
+
+        sys_print_error("Прыжок в другую программу не выполнен");
+   }
+   else
+   {
+        sys_error_print("Прыжок не прошел проверку");
+   }
 }
