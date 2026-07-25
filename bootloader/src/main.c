@@ -38,18 +38,29 @@ void warning_led(void)
    REGISTER_POINTER(GPIO_OUTPUT_CLEAR_REGISTER) = (1 << 8);
 }
 
+void uart_flush_tx(void)
+{
+    REGISTER_POINTER(UART_CONF_REG) |= (1 << 18); // вкл сброс
+    REGISTER_POINTER(UART_CONF_REG) &= ~(1 << 18); //убираем сброс
+}
+
 /*uart_print - функция которая печатает символы через UART0 в терминал для вывода ошибок*/
-void uart_print(const char* string) 
+error_status_t uart_print(const char* string) 
 {
     while (*string) 
     {
-
+        uint32_t tx_current_bytes = (REGISTER_POINTER(UART_STATUS_REGISTER) >> 16) & 0xFF;
         // Ждем, если буфер почти полон
-        while (((REGISTER_POINTER(UART_STATUS_REGISTER) >> 16) & 0xFF) >= 120) {}
+        if (tx_current_bytes >= UART_BUFFER_SIZE) 
+        {
+            uart_flush_tx();
+            return SYSTEM_ERROR_BUFFER_OVERFLOW;
+        }
         
         // Отправляем символ
         REGISTER_POINTER(UART_FIFO_REG) = *string++;
     }
+    return SYSTEM_IS_OK;
 }
 
 /* sys_error_print - функция для сообщения об ошибке */
@@ -164,7 +175,7 @@ error_status_t check_jump(uint32_t program_start_adress, uint32_t top_of_the_pro
         
     __asm__ volatile("csrr %0, mstatus" : "=r"(mstatus));
     if (mstatus & 0x08) return SYSTEM_ERROR_INTERRUPTS_ACTIVE; // Бит MIE (Machine Interrupt Enable)
-    if (REGISTER_POINTER(GDMA_IN_STATE_CH0_REGISTER) & bit_mask_for_gdma) return SYSTEM_ERROR_DMA_STILL_RUNNING;
+    if (REGISTER_POINTER(GDMA_IN_STATE_CH0_REGISTER) & bit_mask_for_gdma) return SYSTEM_ERROR_GDMA_STILL_RUNNING;
     
     return SYSTEM_IS_OK;
 }

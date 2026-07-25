@@ -45,7 +45,7 @@ typedef enum
    SYSTEM_ERROR_MEMORY,
    SYSTEM_ERROR_MEMORY_EMPTY_PROGRAM,
    SYSTEM_INVALID_JUMP_TO_PROGRAM,
-   SYSTEM_ERROR_DMA_STILL_RUNNING,
+   SYSTEM_ERROR_GDMA_STILL_RUNNING,
    SYSTEM_ERROR_INTERRUPTS_ACTIVE,
    SYSTEM_ERROR_BUFFER_OVERFLOW
 } error_status_t; 
@@ -57,8 +57,9 @@ extern void jump_to_program(uint32_t program_start_adress, uint32_t top_of_the_p
 error_status_t init_uart(void);
 error_status_t init_gpio(void);
 error_status_t check_jump(uint32_t program_start_adress, uint32_t top_of_the_program_stack);
+error_status_t uart_print(const char* string);
+void uart_flush_tx(void);
 void warning_led(void);
-void uart_print(const char* string);
 void sys_print_error(const char* message);
 
 #endif
