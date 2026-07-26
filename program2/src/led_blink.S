@@ -9,33 +9,18 @@
 blink_function:
     addi    sp, sp, -16
     sw      ra, 12(sp)
-    sw      s0, 8(sp)
-    sw      s1, 4(sp)
-    mv      s0, a0      # параметр счетчика миганий  где а0 это uint16_t count в функции
-    mv      s1, a1      # параметр задержки  где а1 это uint16_t delay в функции
-
-blink_loop:
-    beqz    s0, blink_done
-
-    li      t0, GPIO_OUT_W1TC_REG
-    li      t1, LED_GPIO_BIT
+    
+    li      t0, GPIO_OUT_W1TC_REG   # { включаем светодиод
+    li      t1, LED_GPIO_BIT        # {
     sw      t1, 0(t0)   # устанавливаем GPIO8 в LOW "инвертированное состояние"
-    mv      a0, s1
-    call    delay_for_blink
 
-    li      t0, GPIO_OUT_W1TS_REG
-    li      t1, LED_GPIO_BIT
+    call    delay_for_blink         # { горит столько времени
+
+    li      t0, GPIO_OUT_W1TS_REG   # { выключаем светодиод
+    li      t1, LED_GPIO_BIT        # { 
     sw      t1, 0(t0)   # устанавливаем GPIO8 в HIGH
-    mv      a0, s1
-    call    delay_for_blink
-
-    addi    s0, s0, -1
-    j       blink_loop
-
-blink_done:
+ 
     lw      ra, 12(sp)
-    lw      s0, 8(sp)
-    lw      s1, 4(sp)
     addi    sp, sp, 16
     ret
 
