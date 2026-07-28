@@ -27,11 +27,45 @@
 #define IO_MUX_CONF_REG_FOR_PIN_GPIO9 0x60009028
 #define IO_MUX_CONF_REG_FOR_PIN_GPIO8 0x60009024
 
-#define PROGRAM2_ADDRESS 0x40380000
-#define PROGRAM2_STACK_TOP 0x3FCDFFF0
+
+
 #define GDMA_IN_STATE_CH0_REGISTER 0x6003F084
 #define UART_BUFFER_SIZE 128
 
+/*
+   чтобы сделать правильно прыжок можно воспользоваться обычной загрузкой
+   (или же Normal Flash Boot) поддерживает безопасную загрузку (Security Boot)
+   загрузчик ПЗУ загружает программу из Flash в SRAM и выполняет её
+   прыжок из-за этого станет более безопасным
+   есть еще Прямая загрузка (Direct Boot) но она используется только для одной программы
+   из выше перечисленного следует что нам нужно знать RAM и Flash адреса а также размер программы
+*/ 
+#define FLASH_INSTRUCTIONS_BUS 0x42000000
+
+// 1. куда мы запишем вторую программу и ее размер
+#define PROGRAM2_ADDRESS 0x40390000 // 0x403_8_0000 - адрес программы bootloader
+#define PROGRAM2_FLASH 0x20000
+#define PROGRAM2_SIZE 0x10000
+#define PROGRAM2_STACK_TOP 0x3FCD0000
+
+// 2. после прыжка нужно передать состояние периферии для этого нам надо RTC FAST Memory
+// данные в этой памяти не могут быть перезаписаны самим МК
+#define RTC_FAST_M 0x50000000 
+
+// битовые маски UART и GPIO для того чтобы знать устройства настроены или нет
+#define PERIPH_UART0_MASK (1 << 0)
+#define PERIPH_GPIO_MASK (1 << 1)
+#define PERIPH_TIMER_MASK (1 << 2)
+
+// 
+typedef struct 
+{
+   uint32_t special_num;   // уникальное число для прыжка 
+   uint32_t periph_mask;   // что настроенно
+   uint32_t uart_clkdiv;   // скорость бод UART потому что при прыжке регистр может сброситься и перенастроено
+   uint32_t gpio_out;      // состояние выходов GPIO
+   uint32_t gpio_enable;   // какие пины настроены на выход
+} __attribute__((packed)) periph_state_t;
 typedef uint8_t byte;
 
 // перечесления ошибок 
@@ -54,6 +88,7 @@ typedef enum
 extern void delay(uint16_t milliseconds); 
 extern void blink_function(uint16_t count, uint32_t delay_milliseconds);
 extern void jump_to_program(uint32_t program_start_adress, uint32_t top_of_the_program_stack) __attribute__((noreturn));
+static inline periph_state_t periph_get(void);
 error_status_t init_uart(void);
 error_status_t init_gpio(void);
 error_status_t check_jump(uint32_t program_start_adress, uint32_t top_of_the_program_stack);
