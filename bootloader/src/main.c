@@ -22,9 +22,9 @@
     в) Настроить UART с параметрами: [указать скорость, например, 115200 бод].
     г) Использовать светодиод для того чтобы указать что инициализация прошла успешно и мы в загрузчике
     д) Обработка ошибок: надёжная обработка возможных ошибок (например, неудачная инициализация периферии).  
-    
 */
 #include "macrosandother.h"
+
 
 
 /*
@@ -170,13 +170,10 @@ error_status_t init_gpio(void)
 */
 error_status_t check_jump(uint32_t program_start_adress, uint32_t top_of_the_program_stack)
 {
-    uint32_t mstatus, bit_mask_for_gdma = 0x00FFFFFF ;
+    uint32_t bit_mask_for_gdma = 0x00FFFFFF ;
     if (REGISTER_POINTER(program_start_adress) == 0xFFFFFFFF) return SYSTEM_ERROR_MEMORY_EMPTY_PROGRAM;
+    if ((REGISTER_POINTER(GDMA_IN_STATE_CH0_REGISTER)) & bit_mask_for_gdma) return SYSTEM_ERROR_GDMA_STILL_RUNNING;
         
-    __asm__ volatile("csrr %0, mstatus" : "=r"(mstatus));
-    if (mstatus & 0x08) return SYSTEM_ERROR_INTERRUPTS_ACTIVE; // Бит MIE (Machine Interrupt Enable)
-    if (REGISTER_POINTER(GDMA_IN_STATE_CH0_REGISTER) & bit_mask_for_gdma) return SYSTEM_ERROR_GDMA_STILL_RUNNING;
-    
     return SYSTEM_IS_OK;
 }
 
@@ -197,15 +194,27 @@ void app_main(void)
    }
 
    blink_function(1, 2000);
+   delay(500);
+   
    error_status_t jump = check_jump(PROGRAM2_ADDRESS, PROGRAM2_STACK_TOP);
    if(jump == SYSTEM_IS_OK)
    {
         jump_to_program(PROGRAM2_ADDRESS, PROGRAM2_STACK_TOP);
-
-        sys_print_error("Прыжок в другую программу не выполнен");
    }
    else
    {
-        sys_error_print("Прыжок не прошел проверку");
+        sys_error_print("Прыжок не прошел проверку\n");
+        switch(jump)
+        {
+            case SYSTEM_ERROR_MEMORY_EMPTY_PROGRAM:
+            sys_error_print("Прыжок невозможен, по адресу лежит стертая память\n");
+            break;
+            case SYSTEM_ERROR_GDMA_STILL_RUNNING:
+            sys_error_print("General Direct Memory Access канал а занят. Прыжок невозможен");
+            break;
+            default:
+            sys_error_print("Прыжок невозможен по другим причинам\n");
+            break;
+        }
    }
 }
