@@ -201,9 +201,19 @@ static void load_from_flash(uint32_t program_flash, uint32_t program_address, ui
     __asm__ volatile ("fence w,w"); // ассемблерная инструкция для того чтобы ожидать отправку данных в Static RAM
 }
 
-static inline periph_state_t periph_get(void)
+
+static inline periph_state_t* periph_get(void){ return (periph_state_t*)RTC_FAST_M; }
+
+
+static inline periph_state_t periph_save_for_jump(uint32_t mask)
 {
-    
+    periph_state_t* periph = periph_get();
+    periph -> gpio_enable = REGISTER_POINTER(GPIO_OUTPUT_ENABLE_REGISTER);
+    periph -> gpio_out    = REGISTER_POINTER(GPIO_OUTPUT_SET_REGISTER);
+    periph -> uart_clkdiv = REGISTER_POINTER(UART_CLKDIV_REG);
+    periph -> timer_config= REGISTER_POINTER(TIMER0_CONFIG_REGISTER);
+    periph -> periph_mask = mask;
+    periph -> special_num = SPECIAL_NUMBER; 
 }
 
 /* 

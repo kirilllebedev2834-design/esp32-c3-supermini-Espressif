@@ -46,7 +46,7 @@
 #define PROGRAM2_FLASH      0x20000
 #define PROGRAM2_SIZE       0x10000
 #define PROGRAM2_STACK_TOP  0x3FCD0000
-
+#define SPECIAL_NUM         0xABCDACBD
 // 2. после прыжка нужно передать состояние периферии для этого нам надо RTC FAST Memory
 // данные в этой памяти не могут быть перезаписаны самим МК
 #define RTC_FAST_M 0x50000000 
@@ -104,7 +104,8 @@ typedef enum
 extern void delay(uint16_t milliseconds); 
 extern void blink_function(uint16_t count, uint32_t delay_milliseconds);
 extern void jump_to_program(uint32_t program_start_adress, uint32_t top_of_the_program_stack) __attribute__((noreturn));
-static inline periph_state_t periph_get(void);
+static inline periph_state_t* periph_get(void);
+static inline periph_state_t periph_save_for_jump(uint32_t mask);
 error_status_t check_timer(void);
 error_status_t init_uart(void);
 error_status_t init_gpio(void);
