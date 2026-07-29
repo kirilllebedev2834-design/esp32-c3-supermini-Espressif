@@ -25,51 +25,6 @@
 */
 #include "macrosandother.h"
 
-
-
-/*
-   warning_led - функция которая будет использоваться для мигания в ситуациях когда у нас возникают ошибки 
-   включает светодиод на 3 секунды и потом выключает его предупреждая что случилась ошибка.
-*/
-void warning_led(void)
-{
-   REGISTER_POINTER(GPIO_OUTPUT_SET_REGISTER) = (1 << 8);
-   delay(3000);
-   REGISTER_POINTER(GPIO_OUTPUT_CLEAR_REGISTER) = (1 << 8);
-}
-
-void uart_flush_tx(void)
-{
-    REGISTER_POINTER(UART_CONF_REG) |= (1 << 18); // вкл сброс
-    REGISTER_POINTER(UART_CONF_REG) &= ~(1 << 18); //убираем сброс
-}
-
-/*uart_print - функция которая печатает символы через UART0 в терминал для вывода ошибок*/
-error_status_t uart_print(const char* string) 
-{
-    while (*string) 
-    {
-        uint32_t tx_current_bytes = (REGISTER_POINTER(UART_STATUS_REGISTER) >> 16) & 0xFF;
-        // Ждем, если буфер почти полон
-        if (tx_current_bytes >= UART_BUFFER_SIZE) 
-        {
-            uart_flush_tx();
-            return SYSTEM_ERROR_BUFFER_OVERFLOW;
-        }
-        
-        // Отправляем символ
-        REGISTER_POINTER(UART_FIFO_REG) = *string++;
-    }
-    return SYSTEM_IS_OK;
-}
-
-/* sys_error_print - функция для сообщения об ошибке */
-void sys_error_print(const char* message)
-{
-    uart_print("Ошибка!\n");
-    uart_print(message);
-}
-
 /*
 Инициализация UARTn
 Для инициализации UARTn:
@@ -143,21 +98,96 @@ error_status_t init_uart(void)
 }
 /* переписал с UART1 на UART0 потому что UART0 тесносвязан с USB-JTAG из-за чего только с UART0 можно работать с терминалом*/
 
+/*uart_print - функция которая печатает символы через UART0 в терминал для вывода ошибок*/
+error_status_t uart_print(const char* string) 
+{
+    while (*string) 
+    {
+        uint32_t tx_current_bytes = (REGISTER_POINTER(UART_STATUS_REGISTER) >> 16) & 0xFF;
+        // Ждем, если буфер почти полон
+        if (tx_current_bytes >= UART_BUFFER_SIZE) 
+        {
+            uart_flush_tx();
+            return SYSTEM_ERROR_BUFFER_OVERFLOW;
+        }
+        
+        // Отправляем символ
+        REGISTER_POINTER(UART_FIFO_REG) = *string++;
+    }
+    return SYSTEM_IS_OK;
+}
+
+void uart_flush_tx(void)
+{
+    REGISTER_POINTER(UART_CONF_REG) |= (1 << 18); // вкл сброс
+    REGISTER_POINTER(UART_CONF_REG) &= ~(1 << 18); //убираем сброс
+}
+
+/* sys_error_print - функция для сообщения об ошибке */
+void sys_error_print(const char* message)
+{
+    uart_print("Ошибка!\n");
+    uart_print(message);
+}
 
 error_status_t init_gpio(void)
 {
     // GPIO8 - светодиод
     REGISTER_POINTER(IO_MUX_CONF_REG_FOR_PIN_GPIO8) = (1 << 12);
-    REGISTER_POINTER(GPIO_OUTPUT_ENABLE_REGISTER) |= (1 << 8);
+    REGISTER_POINTER(GPIO_OUTPUT_ENABLE_REGISTER) |=  (1 << 8);
 
     // проверка
     if( (REGISTER_POINTER(IO_MUX_CONF_REG_FOR_PIN_GPIO8) & (1 << 12)) == 0){ return SYSTEM_ERROR_INIT_FAILED; }
-    if( (REGISTER_POINTER(GPIO_OUTPUT_ENABLE_REGISTER) & (1 << 8)) == 0){ return SYSTEM_ERROR_INIT_FAILED; }
+    if( (REGISTER_POINTER(GPIO_OUTPUT_ENABLE_REGISTER) & (1 << 8)) == 0)   { return SYSTEM_ERROR_INIT_FAILED; }
 
     // GPIO9 - кнопка boot 
     uint32_t gpio_9_mask = (1 << 12) | (1 << 9) | (1 << 8) ;
     REGISTER_POINTER(IO_MUX_CONF_REG_FOR_PIN_GPIO9) = gpio_9_mask;
     if( (REGISTER_POINTER(IO_MUX_CONF_REG_FOR_PIN_GPIO9) & gpio_9_mask) == gpio_9_mask){ return SYSTEM_ERROR_INIT_FAILED; }
+
+    return SYSTEM_IS_OK;
+}
+
+/*
+   warning_led - функция которая будет использоваться для мигания в ситуациях когда у нас возникают ошибки 
+   включает светодиод на 3 секунды и потом выключает его предупреждая что случилась ошибка.
+*/
+void warning_led(void)
+{
+   REGISTER_POINTER(GPIO_OUTPUT_SET_REGISTER) = (1 << 8);
+   delay(3000);
+   REGISTER_POINTER(GPIO_OUTPUT_CLEAR_REGISTER) = (1 << 8);
+}
+
+/*
+
+*/
+void init_timer(void)
+{
+    REGISTER_POINTER(SYSTEM_PERIP_CLK_EN0) |= SYSTEM_TIMERGROUP_CLK_EN;
+
+    REGISTER_POINTER(SYSTEM_PERIP_RST_EN0) |= SYSTEM_TIMERGROUP_RST;
+    REGISTER_POINTER(SYSTEM_PERIP_RST_EN0) &= ~SYSTEM_TIMERGROUP_RST;
+
+    REGISTER_POINTER(TIMER0_CONFIG_REGISTER) = TIMER0_INCREASE | TIMER0_DIVIDER;
+
+    /* сброс счётчика в 0 */
+    REGISTER_POINTER(TIMER0_LOADLOW_REGISTER) = 0;
+    REGISTER_POINTER(TIMER0_LOADHIGH_REGISTER) = 0;
+    REGISTER_POINTER(TIMER0_CONFIG_REGISTER)   = 0;  
+}
+
+error_status_t check_timer(void)
+{   
+    REGISTER_POINTER(TIMER0_UPDATE_REGISTER) = 1;
+    uint32_t t0 = REGISTER_POINTER(TIMER0_CURR_VALUE_LOW);
+
+    for (volatile uint32_t i = 0; i < 200; i++);   /* самодельная задержка */
+
+    REGISTER_POINTER(TIMER0_UPDATE_REGISTER) = 1;
+    uint32_t t1 = REGISTER_POINTER(TIMER0_CURR_VALUE_LOW);
+
+    if (t1 == t0) return SYSTEM_ERROR_INIT_FAILED;
 
     return SYSTEM_IS_OK;
 }
@@ -172,7 +202,7 @@ error_status_t check_jump(uint32_t program_start_adress, uint32_t top_of_the_pro
 {
     uint32_t bit_mask_for_gdma = 0x00FFFFFF ;
     if (REGISTER_POINTER(program_start_adress) == 0xFFFFFFFF) return SYSTEM_ERROR_MEMORY_EMPTY_PROGRAM;
-    if ((REGISTER_POINTER(GDMA_IN_STATE_CH0_REGISTER)) & bit_mask_for_gdma) return SYSTEM_ERROR_GDMA_STILL_RUNNING;
+    if ((REGISTER_POINTER(GDMA_IN_STATE_CHA_REGISTER)) & bit_mask_for_gdma) return SYSTEM_ERROR_GDMA_STILL_RUNNING;
         
     return SYSTEM_IS_OK;
 }
@@ -183,7 +213,11 @@ void app_main(void)
    if(uart_conf != SYSTEM_IS_OK)
    {
         warning_led();
-        sys_error_print("Ошибка инициализации UART");
+        sys_error_print("Ошибка инициализации UART\n");
+        if(uart_conf == SYSTEM_TIMEOUT)
+        {
+            sys_error_print("Синхронизация провалена UART_UPDATE_REGISTER не стал равным 0\n");
+        }
    }
 
    error_status_t gpio_conf = init_gpio();
@@ -193,6 +227,14 @@ void app_main(void)
         sys_error_print("Ошибка инициализации GPIO");
    }
 
+   init_timer();
+   error_status_t timer_conf = check_timer();
+   if (timer_conf != SYSTEM_IS_OK)
+   {
+        warning_led();
+        sys_error_print("Ошибка инициализации таймера\n");
+   }
+   
    blink_function(1, 2000);
    delay(500);
    
