@@ -16,6 +16,8 @@
 */
 #include "macrosandotherprogram2.h"
 
+static inline periph_state_t* periph_get(void){ return (periph_state_t*)RTC_FAST_M; }
+
 void waiting_button_for_jump(void)
 {
     static const byte gpio_num = GPIO_NUM_9;
@@ -33,7 +35,9 @@ void waiting_button_for_jump(void)
 
 void app_main() 
 {
+    periph_state_t *periph = periph_get();
+    if(periph -> special_num == SPECIAL_NUMBER){} 
     for(byte i = 0; i < 2; i++){ blink_function(500); }
     waiting_button_for_jump();
-
+    //error_status_t jump = check_jump();
 }
