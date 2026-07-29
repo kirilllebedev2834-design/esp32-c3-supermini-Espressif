@@ -14,15 +14,20 @@
 #define GPIO_OUTPUT_ENABLE_REGISTER 0x60004020
 #define GPIO_OUTPUT_ENABLE_SET_REGISTER 0x60004024
 #define GPIO_OUTPUT_ENABLE_CLEAR_REGISTER 0x60004028
-#define IO_MUX_CONF_REG_FOR_PIN_GPIO9 0x60009028
-#define IO_MUX_CONF_REG_FOR_PIN_GPIO8 0x60009024
 #define GPIO_NUM_9 9
 
-#define PROGRAM3_ADDRESS 0x0
+#define IO_MUX_CONF_REG_FOR_PIN_GPIO9 0x60009028
+#define IO_MUX_CONF_REG_FOR_PIN_GPIO8 0x60009024
+
+#define PROGRAM3_ADDRESS_FROM_FLASH 0x0
 #define PROGRAM3_STACK_TOP 0x0
+#define PROGRAM3_ADDRESS_FROM_RAM 0x0
+#define PROGRAM3_SIZE 0x1
 
 #define PAUSE 100
 #define BLINK_TIME 300
+#define RTC_FAST_M 0x50000000
+#define SPECIAL_NUMBER 0xABCDABCD
 typedef uint8_t byte;
 
 // перечесления ошибок 
@@ -41,13 +46,21 @@ typedef enum
    SYSTEM_ERROR_BUFFER_OVERFLOW
 } error_status_t; 
 
+typedef struct 
+{
+   uint32_t special_num;   // уникальное число для прыжка 
+   uint32_t periph_mask;   // что настроенно
+   uint32_t uart_clkdiv;   // скорость бод UART потому что при прыжке регистр может сброситься и перенастроено
+   uint32_t gpio_out;      // состояние выходов GPIO
+   uint32_t gpio_enable;   // какие пины настроены на выход
+   uint32_t timer_config;  // конфигурация таймера
+} __attribute__((packed)) periph_state_t;
 
 extern void delay(uint32_t milliseconds); 
 extern void blink_function(uint32_t delay_milliseconds_for_light);
 extern void jump_to_program(uint32_t program_start_adress, uint32_t top_of_the_program_stack) __attribute__((noreturn));
 extern bool button_function(uint32_t gpio_num);
-error_status_t init_uart(void);
-error_status_t init_gpio(void);
+static inline periph_state_t* periph_get(void);
 error_status_t check_jump(uint32_t program_start_adress, uint32_t top_of_the_program_stack);
 error_status_t uart_print(const char* string);
 void waiting_button_for_jump(void);
