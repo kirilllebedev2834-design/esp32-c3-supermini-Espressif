@@ -160,12 +160,13 @@ void warning_led(void)
 }
 
 /*
+    init_timer - функция для инициализации группы таймера 0 
+    настроиваем тактирование (APB_CLK для частоты 80 МГц)
 
 */
 void init_timer(void)
 {
     REGISTER_POINTER(SYSTEM_PERIP_CLK_EN0) |= SYSTEM_TIMERGROUP_CLK_EN;
-
     REGISTER_POINTER(SYSTEM_PERIP_RST_EN0) |= SYSTEM_TIMERGROUP_RST;
     REGISTER_POINTER(SYSTEM_PERIP_RST_EN0) &= ~SYSTEM_TIMERGROUP_RST;
 
@@ -190,6 +191,19 @@ error_status_t check_timer(void)
     if (t1 == t0) return SYSTEM_ERROR_INIT_FAILED;
 
     return SYSTEM_IS_OK;
+}
+
+static void load_from_flash(uint32_t program_flash, uint32_t program_address, uint32_t program_size)
+{
+    volatile uint32_t *src = (volatile uint32_t *)(FLASH_INSTRUCTIONS_BUS + program_flash); // указатель на источник 
+    volatile uint32_t *dst = (volatile uint32_t *)program_address; // указатель на приёмник 
+    for(uint32_t i = 0; i < (program_size / 4); i++) { dst[i] = src[i]; } // цикл копирования программного блока
+    __asm__ volatile ("fence w,w"); // ассемблерная инструкция для того чтобы ожидать отправку данных в Static RAM
+}
+
+static inline periph_state_t periph_get(void)
+{
+    
 }
 
 /* 
