@@ -7,9 +7,9 @@ jump_to_program:
     # a1 = top_of_the_program_stack PROGRAM2_STACK_TOP 0x3FCDFFFF  (Program2)
 
     csrci mstatus, 8        # запрещает прерывания
+    fence
     fence.i                 # синхронизирует кэш и конвейер 
-    csrw mtvec, zero        # сбрасывает вектор прерываний bootloader
-    mv sp, a1               # переключает указатель стека
+    mv sp, a1               # переключает указатель стека на другую программу
     jr a0                   # прыжок в Program2
 
 1:  j 1b                    
